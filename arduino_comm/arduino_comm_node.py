@@ -16,9 +16,14 @@ class ArduinoCommNode(Node):
 
     def timer_callback(self):
         try:
-            data = self.arduino.read_state(fields_types = [float, int, int, int])
-            print(data)
-            self.arduino.write([1600,1400,1500])
+            self.arduino.write([1600,1600,1600])
+            data = self.arduino.read_state(fields_types = [float, int, int, int, int])
+            speed = data[0]
+            is_auto = data[1] == 1
+            curr_throttle = data[2]
+            curr_steering = data[3]
+            brake = data[4]
+
         except Exception as e:
             print(e)
     def destroy_node(self):
@@ -26,10 +31,14 @@ class ArduinoCommNode(Node):
         super().destroy_node()
 def main(args=None):
     rclpy.init(args=args)
-    node = ArduinoCommNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        node = ArduinoCommNode()
+        rclpy.spin(node)
+    except Exception as e:
+        print(e)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

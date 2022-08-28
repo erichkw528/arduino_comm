@@ -23,7 +23,7 @@ class Arduino():
         if len(data) == fields_types:
             raise Exception(f"fields is not equal to {len(fields_types)}")
             
-        result = [fields_types[i](data[i]) for i in range(len(data))]
+        result = [fields_types[i](data[i]) for i in range(len(fields_types))]
         return result
 
     def write(self, fields:List[Any]) -> None:
