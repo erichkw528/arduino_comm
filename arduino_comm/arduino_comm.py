@@ -33,7 +33,15 @@ class Arduino():
 
 
 if __name__ == "__main__":
-    arduino = Arduino(port="/dev/ttyACM0")
-    result = arduino.read_state([float, int, int, int, int])
-    print(result)
-    
+    arduino = Arduino(port="/dev/cu.usbmodem11301", timeout=0.1,write_timeout=0.1)
+    try:
+        while True:
+            try:
+                prev = time.time()
+                result = arduino.read_state([float, int, int, int, int])
+                now = time.time()
+                print(f"{1 / (now-prev)} output result: ", result)
+            except Exception as e:
+                pass 
+    finally:
+        arduino.close()
