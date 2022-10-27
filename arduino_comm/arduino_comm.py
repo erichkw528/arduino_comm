@@ -20,7 +20,7 @@ class Arduino():
         self.arduino.write(b'<s>')
         buf:bytes = self.arduino.read_until(b'\r\n')
         data = buf.decode('utf-8').strip()[1:-1].split(",") # get rid of <> 
-        if len(data) == fields_types:
+        if len(data) != len(fields_types):
             raise Exception(f"fields is not equal to {len(fields_types)}")
             
         result = [fields_types[i](data[i]) for i in range(len(fields_types))]
@@ -31,3 +31,9 @@ class Arduino():
         output = "<a," + output + ">"
         self.arduino.write(output.encode('utf-8'))
 
+
+if __name__ == "__main__":
+    arduino = Arduino(port="/dev/ttyACM0")
+    result = arduino.read_state([float, int, int, int, int])
+    print(result)
+    
