@@ -1,3 +1,7 @@
+# Copyright 2023 michael. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
 from setuptools import setup
 
 package_name = 'arduino_comm'
