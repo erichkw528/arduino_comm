@@ -6,14 +6,26 @@ from time import sleep
 import serial
 from typing import List, Any, Dict
 import json
+import numpy as np
+from pydantic import BaseModel, validator
 
-from pydantic import BaseModel
 
-
-class Actuation:
+class Actuation(BaseModel):
     throttle: float = 0.0
     steering: float = 0.0
     brake: float = 0.0
+
+    @validator("throttle")
+    def check_throttle(cls, v):
+        assert -1 <= v <= 1, f"throttle value {v} incorrect."
+
+    @validator("steering")
+    def check_steering(cls, v):
+        assert -1 <= v <= 1, f"steering value {v} incorrect."
+
+    @validator("brake")
+    def check_brake(cls, v):
+        assert -1 <= v <= 1, f"brake value {v} incorrect."
 
 
 class VehicleState(BaseModel):
@@ -50,17 +62,30 @@ class Arduino:
         self.arduino.flushInput()
         sleep(0.1)
 
-    def read_state(self) -> Dict:
+    def p_read_state(self) -> List:
         self.arduino.write(b"<s>")
         buf: bytes = self.arduino.read_until(b"\r\n")
-        data = buf.decode("utf-8").strip()
-        print(data)
+        data = buf.decode("utf-8").strip().split(",")
         return data
 
-    def write(self, fields: List[Any]) -> None:
+    def read_state(self) -> VehicleState:
+        data: List = self.p_read_state()
+        state = VehicleState()
+        state.speed = float(data[0])
+        state.is_auto = float(data[1])
+        state.actuation.throttle = int(data[2])
+        state.actuation.steering = int(data[3])
+        state.actuation.brake = int(data[4])
+        return state
+
+    def p_write(self, fields: List[Any]) -> None:
         output = ",".join([str(f) for f in fields])
         output = "<a," + output + ">"
         self.arduino.write(output.encode("utf-8"))
+
+    def write_actuation(self, actuation: Actuation) -> None:
+        fields = [actuation.throttle, actuation.steering, actuation.brake]
+        self.p_write(fields=fields)
 
     def close(self):
         self.arduino.close()
@@ -69,14 +94,22 @@ class Arduino:
 if __name__ == "__main__":
     import time
 
-    arduino = Arduino(port="/dev/ttyACM0", timeout=0.1, write_timeout=0.1)
+    arduino = Arduino(
+        port="/dev/ttyACM0", timeout=0.1, write_timeout=0.1, baudrate=115200
+    )
     try:
         while True:
             try:
-                prev = time.time()
+                init = time.time()
                 state: dict = arduino.read_state()
-                now = time.time()
-                print(f"{1 / (now-prev)} ", state)
+
+                data = {"throttle": 1, "steering": 0.5, "brake": 0.0}
+
+                arduino.write_actuation(Actuation(**data))
+
+                print(f"Duration 6: {1/(time.time()-init)}")
+                print()
+
             except Exception as e:
                 print(e)
     finally:
