@@ -73,9 +73,9 @@ class Arduino:
         state = VehicleState()
         state.speed = float(data[0])
         state.is_auto = float(data[1])
-        state.actuation.throttle = int(data[2])
-        state.actuation.steering = int(data[3])
-        state.actuation.brake = int(data[4])
+        state.actuation.throttle = float(data[2])
+        state.actuation.steering = float(data[3])
+        state.actuation.brake = float(data[4])
         return state
 
     def p_write(self, fields: List[Any]) -> None:

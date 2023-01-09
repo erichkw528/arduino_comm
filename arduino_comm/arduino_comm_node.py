@@ -7,32 +7,34 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import String
-import serial 
-from .arduino_comm import Arduino
+import serial
+from .arduino_comm import Arduino, VehicleState, Actuation
+
 
 class ArduinoCommNode(Node):
     def __init__(self):
-        super().__init__('minimal_publisher')
-        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        super().__init__("minimal_publisher")
+        self.publisher_ = self.create_publisher(String, "topic", 10)
         timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.arduino = Arduino(port="/dev/ttyACM0")
 
     def timer_callback(self):
         try:
-            self.arduino.write([1600,1600,1600])
-            data = self.arduino.read_state(fields_types = [float, int, int, int, int])
-            speed = data[0]
-            is_auto = data[1] == 1
-            curr_throttle = data[2]
-            curr_steering = data[3]
-            brake = data[4]
-
+            self.arduino.write_actuation(
+                actuation=Actuation(throttle=0, steering=0, brake=0)
+            )
+            state: VehicleState = self.arduino.read_state()
         except Exception as e:
             print(e)
+
     def destroy_node(self):
-        self.arduino.write([1500,1500,1500])
+        self.arduino.write_actuation(
+            actuation=Actuation(throttle=0, steering=0, brake=0)
+        )
         super().destroy_node()
+
+
 def main(args=None):
     rclpy.init(args=args)
     try:
@@ -45,5 +47,5 @@ def main(args=None):
         rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
