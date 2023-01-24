@@ -14,6 +14,7 @@ class Actuation(BaseModel):
     throttle: float = 0.0
     steering: float = 0.0
     brake: float = 0.0
+    reverse: bool = False
 
     @validator("throttle")
     def check_throttle(cls, v):
@@ -31,32 +32,9 @@ class Actuation(BaseModel):
         return v
 
 
-class TargetAction(BaseModel):
-    speed: float = 0.0
-    steering: float = 0.0
-    brake: float = 0.0
-
-    @validator("speed")
-    def check_throttle(cls, v):
-        assert 0 <= v <= 1, f"speed value {v} incorrect."
-        return v
-
-    @validator("steering")
-    def check_steering(cls, v):
-        assert -1 <= v <= 1, f"steering value {v} incorrect."
-        return v
-
-    @validator("brake")
-    def check_brake(cls, v):
-        assert -1 <= v <= 1, f"brake value {v} incorrect."
-        return v
-
-
 class VehicleState(BaseModel):
-    speed: float = 0.0
     is_auto: bool = False
     actuation: Actuation = Actuation()
-    target_action: TargetAction = TargetAction()
     angle: float = 0.0
 
     class Config:
@@ -89,21 +67,16 @@ class Arduino:
         self.arduino.write(b"<s>")
         buf: bytes = self.arduino.read_until(b"\r\n")
         data = buf.decode("utf-8").strip().split(",")
-        print(data)
         return data
 
     def read_state(self) -> VehicleState:
         data: List = self.p_read_state()
         state = VehicleState()
-        state.target_action.speed = data[0]
-        state.target_action.steering = data[1]
-        state.target_action.brake = data[2]
-        state.actuation.throttle = data[3]
-        state.actuation.steering = data[4]
-        state.actuation.brake = data[5]
-        state.speed = data[6]
-        state.is_auto = data[7]
-        state.angle = data[8]
+        state.actuation.throttle = data[0]
+        state.actuation.steering = data[1]
+        state.actuation.brake = data[2]
+        state.is_auto = data[3]
+        state.angle = data[4]
 
         return state
 
@@ -112,8 +85,8 @@ class Arduino:
         output = "<a," + output + ">"
         self.arduino.write(output.encode("utf-8"))
 
-    def write_actuation(self, act: TargetAction) -> None:
-        fields = [act.speed, act.steering, act.brake]
+    def write_actuation(self, act: Actuation) -> None:
+        fields = [act.throttle, act.steering, act.brake]
         self.p_write(fields=fields)
 
     def close(self):
