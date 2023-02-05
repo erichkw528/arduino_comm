@@ -18,10 +18,10 @@ class ArduinoCommNode(Node):
     def __init__(self):
         super().__init__("arduino_comm_node")
         self.cmd_sub_ = self.create_subscription(
-            EgoVehicleControl, "/ego_vehicle_control", self.cmd_recvd, 10
+            EgoVehicleControl, "/arduino/ego_vehicle_control", self.cmd_recvd, 10
         )
         self.vehicle_state_publisher_ = self.create_publisher(
-            VehicleStatus, "/vehicle_status", 10
+            VehicleStatus, "/arduino/vehicle_status", 10
         )
         self.declare_parameter("write_period", 0.1)
         self.declare_parameter("read_period", 0.1)
