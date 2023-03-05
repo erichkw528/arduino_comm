@@ -8,6 +8,7 @@ from typing import List, Any, Dict
 import json
 import numpy as np
 from pydantic import BaseModel, validator
+import struct
 
 
 class Actuation(BaseModel):
@@ -63,14 +64,25 @@ class Arduino:
         self.arduino.flushInput()
         sleep(0.1)
 
-    def p_read_state(self) -> List:
-        self.arduino.write(b"<s>")
+    def p_read_state(self) -> bytes:
+        self.arduino.write(b"<s>\0")
         buf: bytes = self.arduino.read_until(b"\r\n")
-        data = buf.decode("utf-8").strip().split(",")
-        return data
+        return buf
 
     def read_state(self) -> VehicleState:
-        data: List = self.p_read_state()
+        data: bytes = self.p_read_state()
+
+        data = data[:-2]
+        if len(data) > 2:
+            is_auto = bool(struct.unpack("b", data[:1])[0])
+            throttle = struct.unpack("f", data[1:5])[0]
+            steering = struct.unpack("f", data[5:9])[0]
+            brake = struct.unpack("f", data[9:13])[0]
+            angle = struct.unpack("f", data[13:17])[0]
+        else:
+            print(f"Something is wrong -- data: {data}")
+        is_auto = struct.unpack("f", data[:4])[0]
+
         state = VehicleState()
         state.actuation.throttle = data[0]
         state.actuation.steering = data[1]
@@ -90,6 +102,10 @@ class Arduino:
         self.p_write(fields=fields)
 
     def close(self):
+        self.write_actuation(Actuation(throttle=0.0, steering=0.0, brake=0.0))
+        self.arduino.close()
+
+    def reset(self):
         self.arduino.close()
 
 
@@ -105,7 +121,7 @@ if __name__ == "__main__":
                 init = time.time()
 
                 # arduino.write_actuation(
-                #     TargetAction(speed=0.5, steering=0.5, brake=0.5)
+                #     Actuation(throttle=0.5, steering=0.5, brake=0.5)
                 # )
                 state = arduino.read_state()
                 # print(state)
