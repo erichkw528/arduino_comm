@@ -8,7 +8,7 @@ from rclpy.node import Node
 
 from std_msgs.msg import String, Header
 import serial
-from .arduino_comm import Arduino, VehicleState, Actuation
+from .arduino_comm import Arduino, VehicleState, Actuation, StatusEnum
 from ackermann_msgs.msg import AckermannDriveStamped
 from roar_msgs.msg import EgoVehicleControl, VehicleStatus
 from typing import Optional
@@ -71,7 +71,7 @@ class ArduinoCommNode(Node):
             self._write_msg_to_arduino(self.msg)
 
     def read_timer_callback(self):
-        curr_state: Optional[VehicleState] = self._read_state_from_arduino()
+        curr_state: VehicleState = self._read_state_from_arduino()
         self._publish_vehicle_state(curr_state=curr_state)
 
     def _publish_vehicle_state(self, curr_state: Optional[VehicleState]):
@@ -84,10 +84,13 @@ class ArduinoCommNode(Node):
         )
         msg = VehicleStatus()
         if curr_state == None:
-            print("publishing empty vehicle status msg")
-
+            self.get_logger().error(f"Vehicle status is abnormal: [{curr_state}]")
             msg.header = header
             self.vehicle_state_publisher_.publish(msg)
+            return
+
+        if curr_state.status != StatusEnum.NORMAL:
+            self.get_logger().error(f"Vehicle status is abnormal: [{curr_state}]")
             return
 
         self.state = curr_state
@@ -103,17 +106,15 @@ class ArduinoCommNode(Node):
     def _read_state_from_arduino(self) -> Optional[VehicleState]:
         try:
             if self.arduino == None:
-                return None
+                return VehicleState(status=StatusEnum.UNKNOWN_ERROR)
             state: VehicleState = self.arduino.read_state()
             return state
         except Exception as e:
             self.get_logger().error(f"Error: {e}")
-        finally:
-            return None
+            return VehicleState(status=StatusEnum.UNKNOWN_ERROR)
 
     def _write_msg_to_arduino(self, msg: EgoVehicleControl):
         try:
-
             self.arduino.write_actuation(
                 actuation=Actuation(
                     throttle=msg.throttle,

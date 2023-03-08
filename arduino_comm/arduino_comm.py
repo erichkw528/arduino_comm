@@ -4,11 +4,12 @@
 
 from time import sleep
 import serial
-from typing import List, Any, Dict
+from typing import List, Any, Optional
 import json
 import numpy as np
 from pydantic import BaseModel, validator
 import struct
+from enum import Enum, IntEnum
 
 
 class Actuation(BaseModel):
@@ -33,10 +34,18 @@ class Actuation(BaseModel):
         return v
 
 
+class StatusEnum(IntEnum):
+    NORMAL = 0
+    NO_DATA_RECEIVED = 1
+    UNKNOWN_ERROR = -1
+
+
 class VehicleState(BaseModel):
     is_auto: bool = False
     actuation: Actuation = Actuation()
     angle: float = 0.0
+
+    status: StatusEnum = StatusEnum.NORMAL  # status of the vehicle
 
     class Config:
         arbitrary_types_allowed = True
@@ -69,7 +78,7 @@ class Arduino:
         buf: bytes = self.arduino.read_until(b"\r\n")
         return buf
 
-    def read_state(self) -> VehicleState:
+    def read_state(self) -> Optional[VehicleState]:
         data: bytes = self.p_read_state()
 
         data = data[:-2]
@@ -79,18 +88,17 @@ class Arduino:
             steering = struct.unpack("f", data[5:9])[0]
             brake = struct.unpack("f", data[9:13])[0]
             angle = struct.unpack("f", data[13:17])[0]
+
+            state = VehicleState()
+            state.actuation.throttle = throttle
+            state.actuation.steering = steering
+            state.actuation.brake = brake
+            state.is_auto = is_auto
+            state.angle = angle
+            return state
         else:
-            print(f"Something is wrong -- data: {data}")
-        is_auto = struct.unpack("f", data[:4])[0]
-
-        state = VehicleState()
-        state.actuation.throttle = data[0]
-        state.actuation.steering = data[1]
-        state.actuation.brake = data[2]
-        state.is_auto = data[3]
-        state.angle = data[4]
-
-        return state
+            state = VehicleState(status=StatusEnum.NO_DATA_RECEIVED)
+            return state
 
     def p_write(self, fields: List[Any]) -> None:
         output = ",".join([str(f) for f in fields])
