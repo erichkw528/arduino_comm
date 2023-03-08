@@ -116,7 +116,7 @@ class ArduinoCommNode(Node):
     def _write_msg_to_arduino(self, msg: EgoVehicleControl):
         try:
             self.arduino.write_actuation(
-                actuation=Actuation(
+                act=Actuation(
                     throttle=msg.throttle,
                     steering=msg.steer,
                     brake=msg.brake,
