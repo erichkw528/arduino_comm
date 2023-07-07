@@ -7,7 +7,7 @@ from rclpy.node import Node
 
 from std_msgs.msg import String, Header
 from ackermann_msgs.msg import AckermannDriveStamped
-from roar_msgs.msg import VehicleStatus, EgoVehicleControl
+from roar_msgs.msg import VehicleStatus, EgoVehicleControl, Actuation
 from typing import Optional
 import socket
 import time
@@ -15,6 +15,15 @@ import struct
 import json
 from pydantic import BaseModel
 from pydantic.types import confloat
+from rclpy.logging import LoggingSeverity
+import numpy as np
+
+
+class ArduinoActuationModel(BaseModel):
+    throttle: float = 0.0
+    steering: float = 0.0
+    brake: float = 0.0
+    reverse: bool = False
 
 
 class ArduinoVehicleStateModel(BaseModel):
@@ -24,10 +33,10 @@ class ArduinoVehicleStateModel(BaseModel):
     angle: float = 0.0
     angular_velocity: float = 0.0
     speed: float = 0.0
-    steering: float = 0.0
+    current_actuation: ArduinoActuationModel = ArduinoActuationModel()
 
 
-class ArduinoCmdActionModel(BaseModel):
+class ArduinoEgoVehicleControlMsg(BaseModel):
     target_speed: float = 0.0
     steering_angle: float = 0.0
     brake: confloat(ge=0.0, le=1.0) = 0.0
@@ -69,14 +78,18 @@ class ArduinoCommNode(Node):
         )
 
         self.state: Optional[VehicleStatus] = None
-        self.latest_control_model: ArduinoCmdActionModel = ArduinoCmdActionModel()
+        self.latest_control_model: ArduinoEgoVehicleControlMsg = (
+            ArduinoEgoVehicleControlMsg()
+        )
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        self._logger.set_level(LoggingSeverity.INFO)
 
     def cmd_recvd(self, msg: EgoVehicleControl):
         self.latest_control_model = self.p_egoVehicleControlMsgToArduinoCmdActionModel(
             msg
         )
-        self.get_logger().debug(f"Recevied: {self.latest_cmd}")
+        self.get_logger().debug(f"Recevied: {self.latest_control_model}")
 
     def get_state_from_arduino(self):
         message = b"s"
@@ -88,19 +101,20 @@ class ArduinoCommNode(Node):
             json_data = json.loads(string_data)
             latest_model = self.p_dataToVehicleState(json_data)
             self.p_publish_state(latest_model)
+            self.get_logger().info(f"Read: [{latest_model}]")
         except Exception as e:
             self.get_logger().error(f"Unable to convert [{data}]. Error: {e}")
 
     def write_action_callback(self):
-        message = json.dumps(self.latest_control_model.json()).encode("utf-8")
+        message = self.latest_control_model.json().encode("utf-8")
+        self.get_logger().debug(f"Wrote: {message}")
         self.sock.sendto(message, self.p_getIPAndPort())
-        self.get_logger().debug(f"Wrote: {self.latest_control_model}")
 
     def p_egoVehicleControlMsgToArduinoCmdActionModel(
         self, egoVehicleControlMsg: EgoVehicleControl
-    ) -> ArduinoCmdActionModel:
-        model = ArduinoCmdActionModel()
-        model.brake = egoVehicleControlMsg.brake
+    ) -> ArduinoEgoVehicleControlMsg:
+        model = ArduinoEgoVehicleControlMsg()
+        model.brake = np.clip(egoVehicleControlMsg.brake, 0, 1)
         model.reverse = egoVehicleControlMsg.reverse
         model.steering_angle = egoVehicleControlMsg.steering_angle
         model.target_speed = egoVehicleControlMsg.target_speed
@@ -113,14 +127,7 @@ class ArduinoCommNode(Node):
         return (ip_address, port)
 
     def p_dataToVehicleState(self, data: dict) -> ArduinoVehicleStateModel:
-        model = ArduinoVehicleStateModel()
-        model.is_auto = data.get("is_auto", False)
-        model.is_left_limiter_ON = data.get("is_left_limiter_ON", False)
-        model.is_right_limiter_ON = data.get("is_right_limiter_ON", False)
-        model.angle = data.get("angle", False)
-        model.angular_velocity = data.get("angular_velocity", False)
-        model.speed = data.get("speed", False)
-        model.steering = data.get("steering", False)
+        model = ArduinoVehicleStateModel.parse_obj(data)
         return model
 
     def p_publish_state(self, curr_state: ArduinoVehicleStateModel):
@@ -131,6 +138,12 @@ class ArduinoCommNode(Node):
             .get_parameter_value()
             .string_value
         )
+        act = Actuation()
+        act.throttle = curr_state.current_actuation.throttle
+        act.steering = curr_state.current_actuation.steering
+        act.brake = curr_state.current_actuation.brake
+        act.reverse = curr_state.current_actuation.reverse
+
         msg = VehicleStatus()
 
         msg.angle = curr_state.angle
@@ -138,6 +151,7 @@ class ArduinoCommNode(Node):
         msg.is_left_limiter_on = curr_state.is_left_limiter_ON
         msg.is_right_limiter_on = curr_state.is_right_limiter_ON
         msg.speed = curr_state.speed
+        msg.actuation = act
 
         self.vehicle_state_publisher_.publish(msg)
 
