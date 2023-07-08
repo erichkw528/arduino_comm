@@ -18,8 +18,8 @@ def generate_launch_description():
                 executable="arduino_comm_node",
                 name="arduino_comm_node",
                 remappings=[
-                    ("ego_vehicle_control", "/gokart/ego_vehicle_control"),
-                    ("vehicle_status", "/gokart/vehicle_status"),
+                    ("ego_vehicle_control", "/vehicle/control"),
+                    ("vehicle_status", "/vehicle/status"),
                 ],
             ),
         ]

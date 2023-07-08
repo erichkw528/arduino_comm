@@ -33,6 +33,8 @@ class ArduinoVehicleStateModel(BaseModel):
     angle: float = 0.0
     angular_velocity: float = 0.0
     speed: float = 0.0
+    target_speed: float = 0.0
+    target_steering_angle: float = 0.0
     current_actuation: ArduinoActuationModel = ArduinoActuationModel()
 
 
@@ -101,7 +103,7 @@ class ArduinoCommNode(Node):
             json_data = json.loads(string_data)
             latest_model = self.p_dataToVehicleState(json_data)
             self.p_publish_state(latest_model)
-            self.get_logger().info(f"Read: [{latest_model}]")
+            self.get_logger().debug(f"Read: [{latest_model}]")
         except Exception as e:
             self.get_logger().error(f"Unable to convert [{data}]. Error: {e}")
 
@@ -151,6 +153,8 @@ class ArduinoCommNode(Node):
         msg.is_left_limiter_on = curr_state.is_left_limiter_ON
         msg.is_right_limiter_on = curr_state.is_right_limiter_ON
         msg.speed = curr_state.speed
+        msg.target_speed = curr_state.target_speed
+        msg.target_steering_angle = curr_state.target_steering_angle
         msg.actuation = act
 
         self.vehicle_state_publisher_.publish(msg)
