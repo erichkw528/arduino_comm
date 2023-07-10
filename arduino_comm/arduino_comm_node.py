@@ -7,7 +7,7 @@ from rclpy.node import Node
 
 from std_msgs.msg import String, Header
 from ackermann_msgs.msg import AckermannDriveStamped
-from roar_msgs.msg import VehicleStatus, EgoVehicleControl, Actuation
+from roar_gokart_msgs.msg import VehicleStatus, EgoVehicleControl, Actuation
 from typing import Optional
 import socket
 import time
