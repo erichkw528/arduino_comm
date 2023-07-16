@@ -48,7 +48,7 @@ class ArduinoEgoVehicleControlMsg(BaseModel):
 class ArduinoCommNode(Node):
     def __init__(self):
         super().__init__("arduino_comm_node")
-        self.declare_parameter("ip_address", "10.42.0.4")
+        self.declare_parameter("ip_address", "10.0.0.9")
         self.declare_parameter("port", 1883)
 
         self.declare_parameter("get_state_period", 0.1)
