@@ -5,7 +5,7 @@
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import String, Header
+from std_msgs.msg import String, Header, Float32
 from ackermann_msgs.msg import AckermannDriveStamped
 from roar_gokart_msgs.msg import VehicleStatus, EgoVehicleControl, Actuation
 from typing import Optional
@@ -78,6 +78,7 @@ class ArduinoCommNode(Node):
         self.vehicle_state_publisher_ = self.create_publisher(
             VehicleStatus, "vehicle_status", 10
         )
+        self.speed_publisher_ = self.create_publisher(Float32, "speedometer", 10)
 
         self.state: Optional[VehicleStatus] = None
         self.latest_control_model: ArduinoEgoVehicleControlMsg = (
@@ -158,6 +159,7 @@ class ArduinoCommNode(Node):
         msg.actuation = act
 
         self.vehicle_state_publisher_.publish(msg)
+        self.speed_publisher_.publish(Float32(data=msg.speed))
 
     def destroy_node(self):
         super().destroy_node()
