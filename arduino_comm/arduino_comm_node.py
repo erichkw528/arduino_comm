@@ -78,7 +78,6 @@ class ArduinoCommNode(Node):
         self.vehicle_state_publisher_ = self.create_publisher(
             VehicleStatus, "vehicle_status", 10
         )
-        self.speed_publisher_ = self.create_publisher(Float32, "speedometer", 10)
 
         self.state: Optional[VehicleStatus] = None
         self.latest_control_model: ArduinoEgoVehicleControlMsg = (
@@ -159,7 +158,6 @@ class ArduinoCommNode(Node):
         msg.actuation = act
 
         self.vehicle_state_publisher_.publish(msg)
-        self.speed_publisher_.publish(Float32(data=msg.speed))
 
     def destroy_node(self):
         super().destroy_node()

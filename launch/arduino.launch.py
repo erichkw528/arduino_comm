@@ -20,7 +20,6 @@ def generate_launch_description():
                 remappings=[
                     ("ego_vehicle_control", "/roar/vehicle/control"),
                     ("vehicle_status", "/roar/gokart/status"),
-                    ("speedometer", "/roar/gokart/speedometer"),
                 ],
             ),
         ]
